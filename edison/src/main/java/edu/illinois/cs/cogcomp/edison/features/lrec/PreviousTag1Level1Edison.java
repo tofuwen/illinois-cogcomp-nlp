@@ -41,7 +41,6 @@ public class PreviousTag1Level1Edison implements FeatureExtractor {
 
         TOKENS = ta.getView(ViewNames.TOKENS);
         NER = ta.getView(ViewNames.NER_CONLL);
-        // NER = ta.getView(ViewNames.NER_ONTONOTES);
 
         Set<Feature> result = new LinkedHashSet<Feature>();
 

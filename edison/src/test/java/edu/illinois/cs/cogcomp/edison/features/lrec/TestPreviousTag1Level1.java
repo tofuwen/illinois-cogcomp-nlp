@@ -7,6 +7,7 @@
  */
 package edu.illinois.cs.cogcomp.edison.features.lrec;
 
+import edu.illinois.cs.cogcomp.core.utilities.DummyTextAnnotationGenerator;
 import edu.illinois.cs.cogcomp.lbjava.parse.LinkedVector;
 import edu.illinois.cs.cogcomp.ner.LbjFeatures.NETaggerLevel1;
 import edu.illinois.cs.cogcomp.ner.LbjFeatures.NETaggerLevel2;
@@ -60,64 +61,21 @@ public class TestPreviousTag1Level1 extends TestCase {
         super.setUp();
     }
 
-    private void TestingPreviousTag1Level1(){
-        NETaggerLevel1 t1 = null;
-        NETaggerLevel2 t2 = null;
-        try {
-            Parameters.readConfigAndLoadExternalData(new NerBaseConfigurator().getDefaultConfig());
-            ParametersForLbjCode.currentParameters.forceNewSentenceOnLineBreaks = false;
-            System.out.println("Reading model file : "
-                    + ParametersForLbjCode.currentParameters.pathToModelFile + ".level1");
-            t1 =
-                    new NETaggerLevel1(ParametersForLbjCode.currentParameters.pathToModelFile
-                            + ".level1", ParametersForLbjCode.currentParameters.pathToModelFile
-                            + ".level1.lex");
-            if (ParametersForLbjCode.currentParameters.featuresToUse
-                    .containsKey("PredictionsLevel1")) {
-                System.out.println("Reading model file : "
-                        + ParametersForLbjCode.currentParameters.pathToModelFile + ".level2");
-                t2 =
-                        new NETaggerLevel2(ParametersForLbjCode.currentParameters.pathToModelFile
-                                + ".level2", ParametersForLbjCode.currentParameters.pathToModelFile
-                                + ".level2.lex");
-            }
-        } catch (Exception e) {
-            System.out.println("Cannot initialise the test, the exception was: ");
-            e.printStackTrace();
-            fail();
+    private String labelForCurrentConstituent(View NER, Constituent current) {
+        String value = "";
+        List<String> labels = NER.getLabelsCovering(current);
+        if (labels.size() > 0) {
+            value = labels.get(0);
         }
-        PreviousTag1Level1 ptl1 = new PreviousTag1Level1();
-        String test = "By winning the National Football League(NFL) playoff game, the 49ers will host the winner of Sunday's " +
-                "Dallas-Green Bay Game on January 15 to decide a berth in the January 29 championship game at Miami.";
-        // String test = "JFK has one dog and Newark has a handful, Farbstein said.";
-        ArrayList<LinkedVector> sentences = PlainTextReader.parseText(test);
-        for (LinkedVector lv : sentences) {
-            System.out.println(sentences);
-            for (int i = 0; i < lv.size(); i++) {
-                NEWord neWord = (NEWord) (lv.get(i));
-                Data data = new Data(new NERDocument(sentences, "input"));
-                try {
-                    String output = NETagPlain.tagData(data, t1, t2);
-                    // System.out.println("outout");
-                    // System.out.println(output);
-                } catch (Exception e) {
-                    System.out.println("Cannot annotate the test, the exception was: ");
-                    e.printStackTrace();
-                    fail();
-                }
-                System.out.println(neWord.form);
-                System.out.println(ptl1.classify(neWord).toString());
-            }
-        }
+        return value;
     }
 
     public final void test() throws EdisonException {
 
-        TestingPreviousTag1Level1();
-
         log.debug("TestPreviousTag1Level1 Feature Extractor");
-        // Using the first TA and a constituent between span of 30-40 as a test
+
         TextAnnotation ta = tas.get(9);
+        View NER = ta.getView(ViewNames.NER_CONLL);
         View TOKENS = ta.getView("TOKENS");
 
         log.debug("Got tokens FROM TextAnnotation");
@@ -126,46 +84,28 @@ public class TestPreviousTag1Level1 extends TestCase {
 
         for (Constituent c : testlist) {
             log.debug(c.getSurfaceForm());
-            System.out.println(c.getSurfaceForm());
         }
 
         log.debug("Test Input size is " + testlist.size());
 
-        Constituent test = testlist.get(4);
-
-        log.debug("The constituent we are extracting features from in this test is: "
-                + test.getSurfaceForm());
-
         PreviousTag1Level1Edison afx = new PreviousTag1Level1Edison("PreviousTag1Level1");
 
-        log.debug("Startspan is " + test.getStartSpan() + " and Endspan is " + test.getEndSpan());
-
-        Set<Feature> feats = afx.getFeatures(test);
-        String[] expected_outputs =
-                {"Affixes:p|(giv)", "Affixes:s|(e)", "Affixes:s|(ve)", "Affixes:s|(ive)"};
-
-        if (feats == null) {
-            log.debug("Feats are returning NULL.");
-        }
-
         log.debug("Printing Set of Features");
-        for (Feature f : feats) {
-            log.debug(f.getName());
-            System.out.println(f.getName());
-            // assert (ArrayUtils.contains(expected_outputs, f.getName()));
-        }
 
         for (int i = 0; i < testlist.size(); ++i) {
-            Constituent testAgain = testlist.get(i);
-            System.out.println(testAgain.getSurfaceForm());
-            Set<Feature> featsAgain = afx.getFeatures(testAgain);
-            for (Feature f : featsAgain) {
+            String correct;
+            if (i == 0) {
+                correct = "PreviousTag1Level1:-1()"; // For the first constituent, it should not have previous label.
+            } else {
+                correct = labelForCurrentConstituent(NER, testlist.get(i-1)); // previous label
+                correct = "PreviousTag1Level1:-1(" + correct + ")";
+            }
+            Constituent test = testlist.get(i);
+            Set<Feature> feats = afx.getFeatures(test);
+            for (Feature f : feats) {
                 log.debug(f.getName());
-                System.out.println(f.getName());
-                // assert (ArrayUtils.contains(expected_outputs, f.getName()));
+                assertTrue(f.getName().equals(correct));
             }
         }
-
     }
-
 }
